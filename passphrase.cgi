@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import cgi, os, sys, string, random
+import cgi, os, sys, string, random, Cookie
 
 sys.stderr = sys.stdout
 debug = 1
@@ -38,6 +38,10 @@ def getRandomCap():
         randomCapital = random.choice(passphraseList)
         passphrase = passphrase.replace(randomCapital, randomCapital.capitalize())
 	
+# Set limits for number of words
+minWordNum = 2
+maxWordNum = 12
+
 # Set up names for title
 namesList = ['Peter', 'Karin', 'Chris', 'Danny', 'Jeff', 'Tom', 'Tori', 'Paul', 'Dan', 'Rohan', 'Karen']
 randomName = random.choice(namesList)
@@ -51,7 +55,7 @@ randomSymbol = random.choice(symbolList)
 randomChoice = '<input type="Radio" name="delimiter" id="randsym" value="' +randomSymbol+ '" CHECKED> Random</input>'
 
 # Set up alphabet for random capitals
-alphabetList = list(string.ascii_lowercase)
+alphabetList = list(string.ascii_letters)
 # randomCapital = random.choice(alphabetList)
 
 # Set up data variable to hold user responses
@@ -83,9 +87,11 @@ function copyPwd() {
       });
   }
 
-function similarPwd() {
+function similarPwd(similar) {
     console.log('Similar password clicked');
-  }
+    window.location.reload();
+    // document.getElementsByClassName('passphrase-output')[0].innerText = similar;
+}
   
 function fadeOut(speed) {
     var s = document.getElementsByClassName('confirmation')[0].style;
@@ -169,7 +175,7 @@ table {
   padding: 25px;
 }
 
-input[type=submit] {
+.nice-btn {
 padding: 10px 15px;
 margin: 0 10px;
 color: #fff;
@@ -184,24 +190,8 @@ box-shadow: 0px 4px 6px -2px rgba(151,148,150,0.75);
 cursor: pointer;
 }
 
-#presets form {
+#presets form, output-actions {
     display: inline;
-}
-
-.copy-btn {
-    border: 1px solid #fff;
-    border-radius: 2px;
-    cursor: hand;
-    padding: 0 20px 0 10px;
-}
-
-.similar-btn {
-    cursor: hand;
-    color: red;
-}
-
-.similar-btn::before {
-    content: url(dice-xxl.png);
 }
 
 .confirmation {
@@ -216,7 +206,7 @@ cursor: pointer;
 
 # Create form elements
 formStart = '<P><form method="POST" action="">'
-formEnd = '<input type="Submit" value="Generate Passphrase" style="background-color: hsl('+themeColourBase+', 50%, 60%)"></form>'
+formEnd = '<input type="Submit" value="Generate Passphrase" class="nice-btn" style="background-color: hsl('+themeColourBase+', 50%, 60%)"></form>'
 
 # Start displaying the web page
 print pageHeader
@@ -236,7 +226,7 @@ print '<input type="hidden" name="wordnum" value="2">'
 print '<input type="hidden" name="delimiter" value="' +randomSymbol+ '">'
 print '<input type="hidden" name="caps" value="1" CHECKED>'
 print '<input type="hidden" name="randnum" value="1" CHECKED>'
-print '<input type="submit" value="Short passphrase" style="background-color: hsl('+themeColourBase+', 50%, 60%)">'
+print '<input type="submit" value="Short passphrase" class="nice-btn" style="background-color: hsl('+themeColourBase+', 50%, 60%)">'
 print '</form>'
 
 # Medium
@@ -245,7 +235,7 @@ print '<input type="hidden" name="wordnum" value="'+str(random.randint(3,4))+'">
 print '<input type="hidden" name="delimiter" value="'+randomSymbol+'">'
 print '<input type="hidden" name="caps" value="'+str(random.randint(0,1))+'">'
 print '<input type="hidden" name="randnum" value="'+str(random.randint(0,1))+'">'
-print '<input type="submit" value="Medium passphrase" style="background-color: hsl('+themeColourBase+', 50%, 60%)">'
+print '<input type="submit" value="Medium passphrase" class="nice-btn" style="background-color: hsl('+themeColourBase+', 50%, 60%)">'
 print '</form>'
 
 # Long
@@ -255,7 +245,7 @@ print '<input type="hidden" name="delimiter" value="' +randomSymbol+ '">'
 print '<input type="hidden" name="caps" value="'+str(random.randint(0,1))+'">'
 print '<input type="hidden" name="randnum" value="1" CHECKED>'
 print '<input type="hidden" name="randcaps" value="No">'
-print '<input type="submit" value="Long passphrase" style="background-color: hsl('+themeColourBase+', 50%, 60%)">'
+print '<input type="submit" value="Long passphrase" class="nice-btn" style="background-color: hsl('+themeColourBase+', 50%, 60%)">'
 print '</form></div>'
 
 print formStart
@@ -338,13 +328,12 @@ passphrase=""
 # Create list of words and delimiters for passphrase
 newPassphraseAsList = []
 if data:
-    while wordnum:
+    for _ in range (int(wordnum)):
         word = str(getword())
         if 'caps'in data:
             word = str.capitalize(word)
         newPassphraseAsList.append(word)
         newPassphraseAsList.append(delim)
-        wordnum = int(wordnum)-1
 
 # Trim extraneous delimiter
 if data:
@@ -360,11 +349,29 @@ passphrase = ''.join(newPassphraseAsList)
 # Get a list of the first letters of each word in passphrase for similar button
 lettersList = [i[0] for i in newPassphraseAsList]
 
-# Get all words starting with first-first letter
+#Roll a similar password if the user wants
 if data:
-    bookFile = open('common', 'r')
-    alist = [x for x in bookFile.read().lower().split() if x.startswith('"{}"'.format(lettersList[0]))]
-	       	
+    similarPassphraseAsList = []
+
+for i in lettersList:
+    if i in alphabetList:
+        # It's a letter
+        bookFile = open('common', 'r')
+        sameLetterList = [x for x in bookFile.read().lower().split() if x.startswith((i).lower())]
+        if 'caps' in data:
+            similarPassphraseAsList.append(str.capitalize(random.choice(sameLetterList)))
+        else:
+            similarPassphraseAsList.append(random.choice(sameLetterList))
+    elif i in symbolList:
+        # It's a delimiter
+        similarPassphraseAsList.append(i)
+    else:
+        #It's a number or unknown
+        similarPassphraseAsList.append(newPassphraseAsList[-1])
+
+if data:
+    similarPassphrase = ''.join(similarPassphraseAsList)
+
 # Ok so in the next bit the final character gets stripped before adding a random
 # number and I couldn't get a conditional to work so I ended up just adding a
 # sacrificial character to get stripped so that the whole word would show.
@@ -383,7 +390,8 @@ if 'randcaps' in data:
     
 # If passphrase variable isn't empty, print passphrase. Else print a welcome message
 if not passphrase == ".":
-    print '<H3>Your Unique Passphrase:<BR></H3><HR><H1><span class="passphrase-output">', passphrase.replace("_", ""),'</span></H1><br><span class="copy-btn" onclick="copyPwd();">Copy</span><HR><BR>'
+    print '<H3>Your Unique Passphrase:<BR></H3><HR><H1><span class="passphrase-output" contenteditable="true">', passphrase.replace("_", ""),'</span></H1><br>'
+    print '<span class="copy-btn" onclick="copyPwd();">Copy</span>
     counter()
     print '<span class="confirmation">Copied to clipboard!</span>'
 else:
